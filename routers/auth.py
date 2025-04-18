@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -154,7 +155,6 @@ async def register_user(
 async def loginUser(user: UserLogin, db: Session = Depends(get_db)):
 
     try:
-
         user = authenticate_user(user.username, user.password, db)
         if not user:
             raise HTTPException(
@@ -167,9 +167,23 @@ async def loginUser(user: UserLogin, db: Session = Depends(get_db)):
             username=user.username, user_id=user.id, expires_delta=access_token_expires
         )
 
-        return Token(access_token=access_token, token_type="Bearer")
+        # return Token(access_token=access_token, token_type="Bearer")
+        response = JSONResponse(content="login successfull")
+        response.set_cookie(
+            key="access_token", value=access_token, httponly=True, secure=True, path="/"
+        )
+        return response
 
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"some error in token generation, {str(e)}"
         )
+
+
+@router.post("/logout")
+async def logoutUser():
+    # create a response object
+    response = JSONResponse(content="logout successfull")
+    response.delete_cookie(key="access_token")
+
+    return response
