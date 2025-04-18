@@ -1,4 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from datetime import datetime, timezone
+from typing import List
+from sqlalchemy import Column, ForeignKey, Integer, String, BigInteger
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base
 import uuid
@@ -20,3 +23,25 @@ class User(Base):
     username = Column(String, index=True, unique=True)
     hashed_password = Column(String)
     email = Column(String, unique=True, index=True)
+
+    files: Mapped[List["File"]] = relationship(
+        "File", back_populates="owner", cascade="all, delete-orphan"
+    )
+
+
+class File(Base):
+    __tablename__ = "file"
+
+    id: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    filename: Mapped[str] = mapped_column(String, index=True)
+    upload_date: Mapped[datetime] = mapped_column(
+        default=datetime.now(timezone.utc), index=True
+    )
+    size: Mapped[int] = mapped_column(BigInteger)
+    s3_url: Mapped[str] = mapped_column(String, unique=True, index=True)
+
+    owner_id: Mapped["User"] = mapped_column(ForeignKey("user.id"), nullable=False)
+
+    owner: Mapped["User"] = relationship("User", back_populates="files")
