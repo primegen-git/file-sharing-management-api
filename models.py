@@ -36,12 +36,20 @@ class File(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     filename: Mapped[str] = mapped_column(String, index=True)
-    upload_date: Mapped[datetime] = mapped_column(
+    uploaded_at: Mapped[datetime] = mapped_column(
         default=datetime.now(timezone.utc), index=True
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        index=True,
+    )
+    storage_path: Mapped[str] = mapped_column(String, unique=True)
     size: Mapped[int] = mapped_column(BigInteger)
     s3_url: Mapped[str] = mapped_column(String, unique=True, index=True)
+    content_type: Mapped[str] = mapped_column(String, index=True)
 
     owner_id: Mapped["User"] = mapped_column(ForeignKey("user.id"), nullable=False)
 
+    # NOTE: this is just used for the back_populate. main thing is the ForeignKey attribute
     owner: Mapped["User"] = relationship("User", back_populates="files")

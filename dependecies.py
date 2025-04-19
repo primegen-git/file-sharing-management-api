@@ -1,6 +1,8 @@
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Depends
 import os
 import jwt
+from sqlalchemy.orm import Session
+from database import get_db
 import models
 from dotenv import load_dotenv
 
@@ -11,11 +13,10 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 
 
-def get_current_user_from_cookie(request: Request, db):
-
-    # use the try and except block..
+def get_current_user_from_cookie(request: Request, db: Session = Depends(get_db)):
 
     # STEPS: get the token -> deocode the token -> get the user data -> fetch the user from the database -> return the user. (just handle the potentials errors)
+
     credential_exceptions = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -41,5 +42,5 @@ def get_current_user_from_cookie(request: Request, db):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token is Expired",
         )
-    except jwt.jwt.InvalidTokenError:
+    except jwt.InvalidTokenError:
         raise credential_exceptions
