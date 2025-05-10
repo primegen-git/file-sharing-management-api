@@ -175,9 +175,7 @@ async def loginUser(user: UserLogin, db: Session = Depends(get_db)):
         return response
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"some error in token generation, {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"could not generate token")
 
 
 @router.post("/logout")
