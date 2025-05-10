@@ -48,6 +48,7 @@ class File(Base):
     size: Mapped[int] = mapped_column(BigInteger)
     s3_url: Mapped[str] = mapped_column(String, unique=True, index=True)
     content_type: Mapped[str] = mapped_column(String, index=True)
+    file_extension: Mapped[str] = mapped_column(String, index=True, default=None)
 
     owner_id: Mapped["User"] = mapped_column(ForeignKey("user.id"), nullable=False)
 
