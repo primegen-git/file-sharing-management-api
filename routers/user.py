@@ -89,12 +89,13 @@ def create_presigned_url(bucket_name, object_name, expiration=3600):
     """
 
     Args:
-        bucket_name ():
-        object_name (): s3_object_key
-        expiration (): time till the link will be valid
+        bucket_name (): Name of the s3_bucket.
+        object_name (): s3_object_key.
+        expiration (): time till the link will be valid.
 
     Returns:
-          url for user to access the s3_bucket item
+        public access url for s3_object
+
 
     """
     s3_client = boto3.client("s3")
