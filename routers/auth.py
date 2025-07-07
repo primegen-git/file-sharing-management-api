@@ -45,8 +45,8 @@ class UserResponse(BaseModel):
     email: str
     username: str
 
-    class config:
-        orm_mode = True
+    class Config:
+        from_attributes = True
 
 
 class Token(BaseModel):
