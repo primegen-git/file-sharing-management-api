@@ -108,7 +108,7 @@ def create_presigned_url(bucket_name, object_name, expiration=3600):
             ExpiresIn=expiration,
         )
     except Exception as e:
-        print(e)
+        # print(e)
         return None
     return response
 
@@ -121,11 +121,15 @@ def authenticate_redis():
     if REDIS_PASSWORD is None:
         raise RuntimeError("REDIS_PASSWORD is not set in env")
 
-    r = redis.Redis(
-        host=REDIS_HOST_NAME, port=int(REDIS_PORT), password=REDIS_PASSWORD, ssl=True
-    )
+    # print(REDIS_PASSWORD)
 
-    return r
+    try:
+        r = redis.Redis(
+            host=REDIS_HOST_NAME, port=int(REDIS_PORT), password=REDIS_PASSWORD
+        )
+        return r
+    except Exception as e:
+        raise
 
 
 def get_redis_key(base, filter_param):
@@ -297,6 +301,15 @@ def upload_to_s3(file_bytes, content_type, s3_object_key: str, filename):
         raise HTTPException(
             status_code=400, detail=f"falied to process the file {filename}"
         )
+
+
+@router.get("/check-redis")
+async def check_redis(request: Request):
+    print("inside-parameter-function")
+    r = authenticate_redis()
+    print(r)
+    r.set("test", "test-successfull")
+    return {r.get("test")}
 
 
 @router.get("/files", response_model=List[UserFiles], status_code=status.HTTP_200_OK)

@@ -57,7 +57,7 @@ class Token(BaseModel):
 # HELPERS FUNCTION
 
 
-def validate_user(user, db):
+def validate_user_data(user, db):
 
     # NOTE: first check the password then move forward
 
@@ -129,7 +129,7 @@ async def register_user(
     user: UserRegister, db: Session = Depends(get_db)
 ):  # UserRegister will be used to verify the json response and create a user object after that
 
-    validate_user(user, db)
+    validate_user_data(user, db)
 
     try:
         user_model = models.User(
