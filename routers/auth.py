@@ -10,6 +10,7 @@ import models
 from database import get_db
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from logger import logger
 from uuid import UUID
 
 router = APIRouter(
@@ -98,22 +99,28 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def create_access_token(username: str, user_id: str, expires_delta=Optional[timedelta]):
-
+def create_access_token(
+    username: str, user_id: str, expires_delta: Optional[timedelta] = None
+):
     # create the payload for the token with "sub", "expire_time"
-
     # encode it with the jwt method
-
-    to_encode = {"sub": username}
+    to_encode = {"sub": username, "user_id": user_id}
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
-
-    to_encode.update({"exp": expire})
-
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    to_encode["exp"] = str(int(expire.timestamp()))
+    try:
+        if not SECRET_KEY or not ALGORITHM:
+            logger.error("SECRET_KEY or ALGORITHM is not set in environment variables.")
+            raise HTTPException(
+                status_code=500, detail="Token generation misconfiguration."
+            )
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
+    except Exception as e:
+        logger.error(f"JWT encoding failed: {e}")
+        raise HTTPException(status_code=500, detail="Could not generate token.")
 
 
 @router.get("/")
@@ -128,23 +135,26 @@ async def auth():
 async def register_user(
     user: UserRegister, db: Session = Depends(get_db)
 ):  # UserRegister will be used to verify the json response and create a user object after that
-
-    validate_user_data(user, db)
-
     try:
+        validate_user_data(user, db)
         user_model = models.User(
             username=user.username,
             email=user.email,
             hashed_password=get_password_hash(user.password),
         )
-
         db.add(user_model)
         db.commit()
         db.refresh(user_model)
-
         return user_model
+    except HTTPException as e:
+        logger.error(f"Registration HTTPException for user {user.username}: {e.detail}")
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
+        logger.error(
+            f"Some internal issue occur in registration for user {user.username}: {e}"
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Some internal issue occur in registration {str(e)}",
@@ -153,35 +163,44 @@ async def register_user(
 
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 async def loginUser(user: UserLogin, db: Session = Depends(get_db)):
-
     try:
-        user = authenticate_user(user.username, user.password, db)
-        if not user:
+        auth_user = authenticate_user(user.username, user.password, db)
+        if not auth_user:
+            logger.warning(
+                f"Login failed for username {user.username}: incorrect credentials."
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="incorrect username or password",
             )
-        # now both username and password is correct, create the jwt token
         access_token_expires = timedelta(minutes=60)
         access_token = create_access_token(
-            username=user.username, user_id=user.id, expires_delta=access_token_expires
+            username=str(auth_user.username),
+            user_id=str(auth_user.id),
+            expires_delta=access_token_expires,
         )
-
-        # return Token(access_token=access_token, token_type="Bearer")
         response = JSONResponse(content="login successfull")
         response.set_cookie(
             key="access_token", value=access_token, httponly=True, secure=True, path="/"
         )
+        logger.info(f"User {user.username} logged in successfully.")
         return response
-
+    except HTTPException as e:
+        logger.error(f"Login HTTPException for user {user.username}: {e.detail}")
+        raise
     except Exception as e:
+        logger.error(f"Could not generate token for user {user.username}: {e}")
         raise HTTPException(status_code=500, detail=f"could not generate token")
 
 
 @router.post("/logout")
 async def logoutUser():
-    # create a response object
-    response = JSONResponse(content="logout successfull")
-    response.delete_cookie(key="access_token")
-
-    return response
+    try:
+        msg = {"message": "Logout successful. We hope to see you again soon!"}
+        response = JSONResponse(content=msg)
+        response.delete_cookie(key="access_token")
+        logger.info("User logged out successfully.")
+        return response
+    except Exception as e:
+        logger.error(f"Error during logout: {e}")
+        raise HTTPException(status_code=500, detail="Could not logout user.")

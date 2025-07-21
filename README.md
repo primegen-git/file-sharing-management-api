@@ -85,29 +85,115 @@ file_backend/
 
 ## Getting Started
 
+---
+
+> **IMPORTANT: Follow these setup steps carefully!**
+> If you are unsure about any step, follow the detailed instructions below. If you already know what you are doing, you may proceed quickly.
+
 1. **Clone the repository:**
     ```bash
     git clone https://github.com/primegen-git/file-sharing-management-api
     cd file-sharing-management-api
     ```
 
-2. **Set up environment variables:**
-   Create a `.env` file with your AWS, database, and Redis credentials.
+2. **Install and Configure PostgreSQL:**
+   - Install PostgreSQL on your system or use Docker.
+   - Log in as the root user and create a database named `file-share` (or use your own name but match in .env).
+   - **Default connection info:**
+     - User: `postgres`
+     - Password: `your_password_here`
+     - Port: `5432`
+     - Host: `localhost` (or service name if using Docker)
+     - Database: `file-share`
+   - Use these same values in your `.env` file as shown in `.env.example`.
 
-3. **Install dependencies:**
+3. **Install and Run Redis:**
+   - Install Redis on your system or run with Docker.
+   - Start Redis with a password (recommended):
+     ```bash
+     redis-server --requirepass your_redis_password
+     ```
+   - Make sure the same `REDIS_PASSWORD` is set in your `.env` file (see `.env.example`).
+
+4. **Set up AWS S3 Bucket & Credentials:**
+   - Create an S3 bucket on AWS.
+   - Create an IAM user with programmatic access and attach a policy allowing access to your bucket.
+   - Note the following details and add them to your `.env` file:
+     - `AWS_ACCESS_KEY_ID`
+     - `AWS_SECRET_ACCESS_KEY`
+     - `AWS_DEFAULT_REGION`
+     - `S3_BUCKET_NAME`
+   - See `.env.example` for all needed variables.
+
+5. **Set up environment variables:**
+   - Copy the example env file:
+     ```bash
+     cp .env.example .env
+     ```
+   - **Edit `.env` and fill in all required secrets and settings.**
+
+6. **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-4. **Run the application (example with uvicorn):**
+7. **Run the application (example with uvicorn):**
     ```bash
     uvicorn main:app --reload
     ```
 
-5. **(Optional) Run with Docker:**
-   Create a `Dockerfile` and `docker-compose.yml` for full containerized deployment.
+8. **Run with Docker Compose (Recommended for Ease & Consistency):**
+
+   The project comes with a pre-configured `docker-compose.yml` that sets up three essential services:
+
+   - **file-fastapi**: The FastAPI application server
+   - **file-pg**: PostgreSQL database
+   - **file-redis**: Redis cache server
+
+   **Important steps before running:**
+   1. **Copy and configure your environment file:**
+      - Copy `.env.example` to `.env` in the project root:
+        ```bash
+        cp .env.example .env
+        ```
+      - Edit `.env` and fill in all secrets (Postgres password, Redis password, AWS credentials, etc.).
+      - The `POSTGRES_PASSWORD` and `REDIS_PASSWORD` you set in `.env` **must** match the values in `docker-compose.yml`.
+
+   2. **Verify Docker and Docker Compose are installed.**
+      - For most systems, you can check with:
+        ```bash
+        docker --version
+        docker-compose --version
+        ```
+
+   3. **Start all services:**
+      - From the project root (with `.env` present), run:
+        ```bash
+        docker-compose up
+        ```
+      - This will launch:
+        - `file-fastapi`: your API backend
+        - `file-pg`: PostgreSQL Database
+        - `file-redis`: Redis Server
+
+   4. **Access the API:**
+      - By default, the FastAPI server is available at [http://localhost:8000](http://localhost:8000).
+      - You can adjust ports and settings in `docker-compose.yml` as needed.
+
+   5. **Stop services:**
+      - Use `Ctrl+C` in your terminal to stop, or run:
+        ```bash
+        docker-compose down
+        ```
+
+   > **Note:**
+   > - All sensitive credentials should be managed in your `.env` file.
+   > - The `.env` file **must** exist in the project root before starting Docker Compose.
+   > - The structure of `.env` is provided in `.env.example`.
+   > - For production, review your Docker and environment settings for security best practices.
 
 ---
+```
 
 ## API Endpoints Overview
 

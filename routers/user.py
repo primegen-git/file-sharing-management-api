@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from dependecies import get_current_user_from_cookie, delete_s3_object
 import models
+from logger import logger
 
 load_dotenv()
 
@@ -108,7 +109,7 @@ def create_presigned_url(bucket_name, object_name, expiration=3600):
             ExpiresIn=expiration,
         )
     except Exception as e:
-        # print(e)
+        logger.error(f"Error generating presigned URL: {e}")
         return None
     return response
 
@@ -289,27 +290,29 @@ def upload_to_s3(file_bytes, content_type, s3_object_key: str, filename):
                 "ContentType": content_type
             },
         )
-
     except ClientError as e:
-        print(f"s3 upload eror {filename} as {e}")
+        logger.error(f"s3 upload error {filename}: {e}")
         raise HTTPException(
             status_code=500, detail=f"failed to upload {filename} to S3"
         )
-
     except Exception as e:
-        print(f"failed to process the file {filename} as {e}")
+        logger.error(f"failed to process the file {filename}: {e}")
         raise HTTPException(
-            status_code=400, detail=f"falied to process the file {filename}"
+            status_code=400, detail=f"failed to process the file {filename}"
         )
 
 
 @router.get("/check-redis")
 async def check_redis(request: Request):
-    print("inside-parameter-function")
-    r = authenticate_redis()
-    print(r)
-    r.set("test", "test-successfull")
-    return {r.get("test")}
+    try:
+        logger.info("inside-parameter-function")
+        r = authenticate_redis()
+        logger.info(f"Redis instance: {r}")
+        r.set("test", "test-successfull")
+        return {r.get("test")}
+    except Exception as e:
+        logger.error(f"Error in /check-redis: {e}")
+        raise HTTPException(status_code=500, detail="Error in check-redis endpoint.")
 
 
 @router.get("/files", response_model=List[UserFiles], status_code=status.HTTP_200_OK)
@@ -354,6 +357,9 @@ async def delete_files(
 
         for file in user_files:
             background_tasks.add_task(delete_s3_object, file.storage_path)
+
+        msg = {"message": "All your files have been deleted successfully."}
+        return JSONResponse(content=msg)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"fail to delete files {str(e)}")
@@ -432,14 +438,12 @@ async def upload_user_files(
             uploaded_files_details.append(response_object)
 
         except Exception as e:
-            print(f"database upload error {file.filename} as {e}")
+            logger.error(f"database upload error {file.filename}: {e}")
             db.rollback()
-
             try:
                 s3_client.delete_object(Bucket=S3_BUCKET_NAME, key=s3_object_key)
             except Exception as delete_error:
-                print(f"failed to delete orphaned s3 file {delete_error}")
-
+                logger.error(f"failed to delete orphaned s3 file: {delete_error}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to save the metadata of file {file.filename}",
@@ -461,7 +465,10 @@ async def deleteUser(
         delete_redis(user_id)
 
         # NOTE: now delete the access token also
-        response = JSONResponse(content="files sucessfully deleted")
+        msg = {
+            "message": "Your account and all files have been deleted successfully. We're sorry to see you go!"
+        }
+        response = JSONResponse(content=msg)
         response.delete_cookie(key="access_token")
         return response
 
