@@ -70,3 +70,8 @@ db.sqlite3
 .dockerignore
 *.swp
 .DS_Store
+
+# system related files
+notes/
+signals.py/
+test.py/
